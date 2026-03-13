@@ -1,5 +1,7 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
+// PostGres: https://github.com/dotnet/aspire-samples/blob/main/samples/aspire-shop/AspireShop.AppHost/AppHost.cs
+
 var postgres = builder.AddPostgres("postgres")
     .WithPgAdmin()
     .WithLifetime(ContainerLifetime.Persistent);
@@ -14,15 +16,59 @@ var templateDb = postgres.AddDatabase("templatedb");
 
 var cache = builder.AddRedis("cache");
 
-var server = builder.AddProject<Projects.Aspire_Template_Server>("apiserver")
+// KeyCloak: https://github.com/jonathanpotts/AspireNextjsKeycloak/blob/main/AspireNextjsKeycloak.AppHost/AppHost.cs
+
+var keycloak = builder
+    .AddKeycloak("keycloak", 8080)
+    .WithDataVolume()
+    .WithRealmImport("./KeycloakRealms");
+
+var keycloakRealm = builder.AddParameter("keycloak-realm", "AspireNextjsKeycloak");
+var keycloakClientId = builder.AddParameter("keycloak-client-id", "apiservice");
+
+
+var server = builder.AddProject<Projects.Aspire_Template_Server>("apiservice")
+    .WithEnvironment("KEYCLOAK__REALM", keycloakRealm)
+    .WithEnvironment("KEYCLOAK__CLIENTID", keycloakClientId)
     .WithReference(templateDb)
     .WaitFor(templateDb)
     .WithReference(cache)
     .WaitFor(cache)
+    .WithReference(keycloak)
+    .WaitFor(keycloak)
     .WithHttpHealthCheck("/health")
     .WithExternalHttpEndpoints();
 
+var betterAuthSecret = builder.AddParameter(
+    "better-auth-secret",
+    new GenerateParameterDefault { MinLength = 32, Special = false },
+    secret: true,
+    persist: true
+);
+var betterAuthUrl = builder.AddParameter(
+    "better-auth-url",
+    "http://webfrontend-aspirenextjskeycloak.dev.localhost:3000"
+);
+var keycloakId = builder.AddParameter("keycloak-id", "webfrontend");
+var keycloakSecret = builder.AddParameter(
+    "keycloak-secret",
+    "O94wFQrYPY4Eg2AZvMUQFR71203FwC1r",
+    secret: true
+);
+var keycloakScope = builder.AddParameter("keycloak-scope", "apiservice");
+
 var webfrontend = builder.AddViteApp("WebUI", "../frontend")
+    .WithReference(server)
+    .WaitFor(server)
+    .WithExternalHttpEndpoints()
+    .WithEnvironment("BETTER_AUTH_SECRET", betterAuthSecret)
+    .WithEnvironment("BETTER_AUTH_URL", betterAuthUrl)
+    .WithEnvironment("KEYCLOAK_REALM", keycloakRealm)
+    .WithEnvironment("KEYCLOAK_ID", keycloakId)
+    .WithEnvironment("KEYCLOAK_SECRET", keycloakSecret)
+    .WithEnvironment("KEYCLOAK_SCOPE", keycloakScope)
+    .WithReference(keycloak)
+    .WaitFor(keycloak)
     .WithReference(server)
     .WaitFor(server);
 
