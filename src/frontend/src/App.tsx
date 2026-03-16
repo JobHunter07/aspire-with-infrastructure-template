@@ -1,7 +1,11 @@
 import { useState, useEffect } from 'react'
 import aspireLogo from '/Aspire.png'
 import './App.css'
-import { authClient } from './auth-client'
+
+interface SessionProfile {
+  name?: string
+  claims?: { type: string; value: string }[]
+}
 
 interface WeatherForecast {
   date: string
@@ -16,7 +20,33 @@ function App() {
   const [error, setError] = useState<string | null>(null)
   const [useCelsius, setUseCelsius] = useState(false)
 
-  const { data: session, isPending } = authClient.useSession()
+  const [session, setSession] = useState<SessionProfile | null>(null)
+  const [isPending, setIsPending] = useState(true)
+
+  useEffect(() => {
+    let mounted = true
+    const checkSession = async () => {
+      try {
+        const res = await fetch('/auth/user')
+        if (!mounted) return
+        if (res.ok) {
+          const data = await res.json()
+          setSession(data)
+        } else {
+          setSession(null)
+        }
+      } catch {
+        setSession(null)
+      } finally {
+        if (mounted) setIsPending(false)
+      }
+    }
+
+    checkSession()
+    return () => {
+      mounted = false
+    }
+  }, [])
 
   const fetchWeatherForecast = async () => {
     setLoading(true)
@@ -31,9 +61,10 @@ function App() {
       
       const data: WeatherForecast[] = await response.json()
       setWeatherData(data)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch weather data')
-      console.error('Error fetching weather forecast:', err)
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Failed to fetch weather data'
+      setError(msg)
+      console.error('Error fetching weather forecast:', error)
     } finally {
       setLoading(false)
     }

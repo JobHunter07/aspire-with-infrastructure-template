@@ -1,28 +1,4 @@
-import { betterAuth } from "better-auth";
-import { genericOAuth } from "better-auth/plugins";
-import { getServiceEndpoint } from "./service-discovery";
+// auth removed from frontend. Server (BFF) handles all auth interactions with Keycloak.
+// This file is intentionally left blank to avoid bundling server-side auth libraries into the frontend.
 
-export const auth = betterAuth({
-  secret: process.env.BETTER_AUTH_SECRET || "build-only-secret-0123456789abcd",
-  plugins: [
-    genericOAuth({
-      config: [
-        {
-          providerId: "keycloak",
-          clientId: process.env.KEYCLOAK_ID!,
-          clientSecret: process.env.KEYCLOAK_SECRET!,
-          discoveryUrl: `${getServiceEndpoint("keycloak")}/realms/${process.env.KEYCLOAK_REALM}/.well-known/openid-configuration`,
-          scopes: [
-            "openid",
-            "email",
-            "profile",
-            "offline_access",
-            ...(process.env.KEYCLOAK_SCOPE
-              ? process.env.KEYCLOAK_SCOPE.split(" ")
-              : []),
-          ],
-        },
-      ],
-    }),
-  ],
-});
+export {};

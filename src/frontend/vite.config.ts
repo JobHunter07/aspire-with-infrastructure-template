@@ -8,8 +8,11 @@ export default defineConfig({
     proxy: {
       // Proxy API calls to the app service
       '/api': {
-        target: process.env.SERVER_HTTPS || process.env.SERVER_HTTP,
-        changeOrigin: true
+        // Default to the local API HTTP launch profile. Allow overriding via env vars.
+        target: process.env.SERVER_HTTP || process.env.SERVER_HTTPS || 'http://localhost:5327',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ''),
+        secure: false
       }
     }
   }

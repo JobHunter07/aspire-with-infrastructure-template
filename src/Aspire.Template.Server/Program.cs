@@ -29,6 +29,9 @@ var keycloakClientSecret = builder.Configuration["Keycloak:ClientSecret"]; // op
 var keycloakAuthority = builder.Configuration["Keycloak:Authority"]
     ?? $"http://localhost:8080/auth/realms/{keycloakRealm}";
 
+// Use explicit Keycloak metadata address provided by configuration/user
+var keycloakMetadata = "http://localhost:8080/realms/AspireNextjsKeycloak/.well-known/openid-configuration";
+
 // BFF approach: use cookie authentication for the browser and OIDC to talk to Keycloak.
 builder.Services.AddAuthentication(options =>
     {
@@ -47,7 +50,18 @@ builder.Services.AddAuthentication(options =>
     })
     .AddOpenIdConnect(OpenIdConnectDefaults.AuthenticationScheme, options =>
     {
-        options.Authority = keycloakAuthority;
+        // Use the resolved metadata address so middleware can fetch discovery regardless of Keycloak distribution
+        options.MetadataAddress = keycloakMetadata;
+        // Also set Authority to the metadata base (without the .well-known suffix) so token validation behaves normally
+        var idx = keycloakMetadata.IndexOf("/.well-known", StringComparison.OrdinalIgnoreCase);
+        if (idx > 0)
+        {
+            options.Authority = keycloakMetadata.Substring(0, idx);
+        }
+        else
+        {
+            options.Authority = keycloakAuthority;
+        }
         options.ClientId = keycloakClientId;
         if (!string.IsNullOrWhiteSpace(keycloakClientSecret))
         {
@@ -73,9 +87,13 @@ builder.Services.AddAuthentication(options =>
         {
             OnRedirectToIdentityProvider = context =>
             {
-                if (context.Properties?.Parameters != null && context.Properties.Parameters.TryGetValue("kc_idp_hint", out var idp))
+                if (context.Properties?.Parameters != null && context.Properties.Parameters.TryGetValue("kc_idp_hint", out var idpObj))
                 {
-                    context.ProtocolMessage.SetParameter("kc_idp_hint", idp);
+                    var idp = idpObj?.ToString();
+                    if (!string.IsNullOrEmpty(idp))
+                    {
+                        context.ProtocolMessage.SetParameter("kc_idp_hint", idp);
+                    }
                 }
 
                 return Task.CompletedTask;
