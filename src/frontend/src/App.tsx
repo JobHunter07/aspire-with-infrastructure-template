@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import aspireLogo from '/Aspire.png'
 import './App.css'
+import { authClient } from './auth-client'
 
 interface WeatherForecast {
   date: string
@@ -14,6 +15,8 @@ function App() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [useCelsius, setUseCelsius] = useState(false)
+
+  const { data: session, isPending } = authClient.useSession()
 
   const fetchWeatherForecast = async () => {
     setLoading(true)
@@ -46,6 +49,33 @@ function App() {
       month: 'short', 
       day: 'numeric' 
     })
+  }
+
+  if (isPending) {
+    return <div className="app-container">Checking authentication...</div>
+  }
+
+  if (!session) {
+    return (
+      <div className="app-container">
+        <header className="app-header">
+          <h1 className="app-title">Aspire Starter</h1>
+        </header>
+        <main className="main-content">
+          <div className="card">
+            <p>This application requires sign-in to view.</p>
+            <button
+              onClick={async () => {
+                await authClient.signIn.social({ provider: 'keycloak' })
+              }}
+              type="button"
+            >
+              Sign in with Keycloak
+            </button>
+          </div>
+        </main>
+      </div>
+    )
   }
 
   return (
