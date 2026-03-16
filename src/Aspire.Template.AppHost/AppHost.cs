@@ -6,11 +6,11 @@ using System.Security.Cryptography;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-var pgPassword    = builder.AddParameter("POSTGRES-PASSWORD", () => new Guid(RandomNumberGenerator.GetBytes(16)).ToString(), true);
+// var pgPassword    = builder.AddParameter("POSTGRES-PASSWORD", () => new Guid(RandomNumberGenerator.GetBytes(16)).ToString(), true);
 var encryptionKey = builder.AddParameter("infisical-encryptionKey", () => RandomNumberGenerator.GetHexString(32), true);
-var authSecret    = builder.AddParameter("infisical-AUTH_SECRET", () => Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)), true);
+var authSecret    = builder.AddParameter("infisical-AUTH-SECRET", () => Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)), true);
 
-var postgres = builder.AddPostgres("postgres", null, pgPassword)
+var postgres = builder.AddPostgres("postgres")
     .WithPgAdmin()
     .WithLifetime(ContainerLifetime.Persistent);
 
@@ -32,8 +32,10 @@ var infisical = builder.AddContainer("infisical", "infisical/infisical:latest")
     .WithEnvironment("AUTH_SECRET", authSecret)
     .WithEnvironment("PORT", "80")
     .WithEnvironment("POSTGRES_DB", "infisicaldb")
-    .WithHttpEndpoint(targetPort: 80, port: int.Parse(args.LastOrDefault() ?? "5005"), name: "infisical")
-    .WithHttpHealthCheck("/api/status", 8080);
+    .WithReference(infisicaldb)
+    .WaitFor(infisicaldb)
+    .WithHttpEndpoint(targetPort: 80, port: int.Parse(args.LastOrDefault() ?? "5005"), name: "infisical");
+    //.WithHttpHealthCheck("/api/status", 8080)
 
 var keycloak = builder
     .AddKeycloak("keycloak", 8080)
@@ -69,11 +71,7 @@ var betterAuthUrl = builder.AddParameter(
 );
 
 var keycloakId = builder.AddParameter("keycloak-id", "webfrontend");
-var keycloakSecret = builder.AddParameter(
-    "keycloak-secret",
-    "O94wFQrYPY4Eg2AZvMUQFR71203FwC1r",
-    secret: true
-);
+var keycloakSecret = builder.AddParameter("keycloak-secret", "O94wFQrYPY4Eg2AZvMUQFR71203FwC1r", secret: true);
 
 var keycloakScope = builder.AddParameter("keycloak-scope", "apiservice");
 

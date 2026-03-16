@@ -66,7 +66,9 @@ function App() {
             <p>This application requires sign-in to view.</p>
             <button
               onClick={async () => {
-                await authClient.signIn.social({ provider: 'keycloak' })
+                // Use BFF login endpoint so frontend remains auth-free
+                const returnUrl = window.location.pathname + window.location.search
+                window.location.href = `/auth/login?returnUrl=${encodeURIComponent(returnUrl)}`
               }}
               type="button"
             >
@@ -76,6 +78,11 @@ function App() {
         </main>
       </div>
     )
+  }
+  const handleLogout = () => {
+    // Redirect to server-side logout which will clear the BFF cookie and sign out of Keycloak
+    const returnUrl = window.location.origin
+    window.location.href = `/auth/logout?returnUrl=${encodeURIComponent(returnUrl)}`
   }
 
   return (
@@ -92,6 +99,16 @@ function App() {
         </a>
         <h1 className="app-title">Aspire Starter</h1>
         <p className="app-subtitle">Modern distributed application development</p>
+        <div className="header-top-right">
+          <button
+            className="logout-button"
+            onClick={handleLogout}
+            type="button"
+            aria-label="Sign out"
+          >
+            Sign out
+          </button>
+        </div>
       </header>
 
       <main className="main-content">
