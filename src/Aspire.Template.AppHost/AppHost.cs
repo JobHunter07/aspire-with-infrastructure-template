@@ -34,13 +34,15 @@ var infisical = builder.AddContainer("infisical", "infisical/infisical:latest")
     .WithEnvironment("POSTGRES_DB", "infisicaldb")
     .WithReference(infisicaldb)
     .WaitFor(infisicaldb)
-    .WithHttpEndpoint(targetPort: 80, port: int.Parse(args.LastOrDefault() ?? "5005"), name: "infisical");
+    .WithHttpEndpoint(targetPort: 80, port: int.Parse(args.LastOrDefault() ?? "5005"), name: "infisical")
     //.WithHttpHealthCheck("/api/status", 8080)
+    .WithLifetime(ContainerLifetime.Persistent);
 
 var keycloak = builder
     .AddKeycloak("keycloak", 8080)
     .WithDataVolume()
-    .WithRealmImport("./KeycloakRealms");
+    .WithRealmImport("./KeycloakRealms")
+    .WithLifetime(ContainerLifetime.Persistent);
 
 var keycloakRealm = builder.AddParameter("keycloak-realm", "AspireNextjsKeycloak");
 var keycloakClientId = builder.AddParameter("keycloak-client-id", "apiservice");
